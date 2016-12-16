@@ -1,0 +1,274 @@
+<html>
+  <head>
+    <meta name="viewport" content="initial-scale=1.0, user-scalable=no">
+    <meta charset="utf-8">
+    <title>Geocoding service</title>
+    <style>
+      * { 
+        font-size: 12px;
+        font-family: Verdana;
+      }
+      html, body, #map-canvas { height: 100%; min-height: 600px; min-width: 700px; margin: 0px; padding: 0px }
+      input, .btn {
+        line-height: 20px;
+      }
+      .left {
+        float: left;
+      }
+      .right {
+        float: right;
+      }
+      #map-canvas { height: 50%; }
+      #panel { position: absolute; top: 5px; left: 50%; margin-left: -350px; z-index: 5; background-color: #fff; padding: 5px; border: 1px solid #999; }
+      #stats div {
+        line-height: 30px;
+      }
+      .dataTable {
+        width: 100%;
+        border: 1px solid #666666;
+        display: inline-block;
+        border-radius: 5px;
+      }
+      .dataTableheader {
+        
+      }
+      .dataTable span {
+        width: 50%;
+        float: left;
+        text-align: center;
+        line-height: 24px;
+      }
+      .dataTableheader span {
+        font-weight: bold;
+        background-color: #999999;
+      }
+    </style>
+    <script src="https://code.jquery.com/jquery-2.2.4.min.js" crossorigin="anonymous"></script>
+    <script src="https://maps.googleapis.com/maps/api/js?v=3.exp&sensor=false&libraries=visualization"></script>
+</head>
+<body>
+  <div class="panel" style="padding: 0 15px;">
+    <div class="header" style="line-height: 50px; display: inline-block; width: 100%;">
+      <div class="left">
+        <label>Origin
+            <input id="origin" type="text" value="Boston">
+        </label>
+        <label>Destination
+            <input id="destination" type="text" value="Jersey City">
+        </label>
+        <input class="btn" type="button" value="GetDirections" onclick="calcRoute()" />
+      </div>
+      <div class="right">
+        <label>Time
+            <input id="time" type="text" value="">
+        </label>
+      </div>
+    </div>
+    <div class="content" style="display: inline-block; width: 100%;">
+      <div class="left" style="width: 69%">
+        <div id="map-canvas"></div>
+      </div>
+      <div class="right" style="width: 29%; background-color: #CCCCCC; padding: .5%; border-radius: 5px; min-height: 585px; max-height: 585px; overflow: auto;">
+        <div id="control_panel" style="text-align:left;padding-top:5px">
+          <div id="routes">
+            <input id = "r1" type="button" value="Route 1" onclick="displayRoute1()">
+            <input id = "r2" type="button" value="Route 2" onclick="displayRoute2()">
+            <input id = "r3" type="button" value="Route 3" onclick="displayRoute3()">
+          </div>
+          <div id="stats" style="margin: 15px 0 0;">
+            <div id="total_distance"></div>
+            <div id="total_time"></div>
+          </div>
+          <ul id="vertex"></ul>
+          <div class="dataTable">
+            <div class="dataTableheader">
+              <span>Meaure</span>
+              <span>Value</span>
+            </div>
+            <div class="dataTableContent">
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="footer">
+    </div>
+  </div>
+
+    <script type="text/javascript" src="R1.js"></script>
+	<script type="text/javascript">
+        var directionsDisplay;
+        var directionsService = new google.maps.DirectionsService();
+        var map;
+		var directionsRequest;
+		var col = ["red","orange","yellow"];
+		var heatmapDatas,heatmapData= [];
+		
+		
+        function initialize() {
+            directionsDisplay = new google.maps.DirectionsRenderer();
+
+            var mapOptions = {
+                zoom: 7,
+                center: new google.maps.LatLng(48.85727000, 2.35238),
+				mapTypeId: 'satellite'
+            };
+            map = new google.maps.Map(document.getElementById('map-canvas'), mapOptions);
+            directionsDisplay.setMap(map);
+        }
+
+        function calcRoute() {
+            var start = document.getElementById('origin').value;
+            var end = document.getElementById('destination').value;
+            directionsRequest = {
+                origin: start,
+                destination: end,
+				provideRouteAlternatives : true,
+                travelMode: google.maps.TravelMode.DRIVING,
+				unitSystem: google.maps.UnitSystem.METRIC
+            };
+			
+		}
+		
+		function displayRoute1() {
+			
+			writeRouteDetails('Route 1');
+			showRoute(0,6,114);
+			//drawHeatMap(heatmapDatas1);
+			//writeRouteDetails('Route 1');
+			
+		}
+
+		function displayRoute2(){
+			
+			writeRouteDetails('Route 2');
+			showRoute(1,18,257);
+			//drawHeatMap(heatmapDatas3);
+		}
+		
+		function displayRoute3(){
+		
+		writeRouteDetails('Route 3');		
+		showRoute(2,11,135);
+		//drawHeatMap(heatmapDatas2);
+		}
+		
+
+		function showRoute(i,accpts,accdts){
+			
+			initialize();
+			directionsService.route(directionsRequest,function (response, status) {
+			if (status == google.maps.DirectionsStatus.OK) {					
+				new google.maps.DirectionsRenderer({
+				map: map,
+				directions: response,
+				routeIndex: i,
+				polylineOptions: {strokeColor:col[i]}
+			});	
+			
+			
+			computeTotalDistance(response,i);
+        
+     
+			
+			var points = response.routes[i].overview_path;
+			for (var j = 0; j < points.length; j++) {
+				var coords = getLiText(points[j]);
+        // Writing data to file.
+        $.ajax({
+          url: "dataWriter.php",
+          data: {'data': coords},
+        }).done(function() {
+          console.log('success', coords);
+        });
+			}	
+			Runbat();
+      setTimeout(function(){
+        readData();
+      }, 15000);
+			} else {
+				  console.log("Directions query failed: " + status);
+			}
+			});
+		}
+    
+    function drawHeatMap(hmd){	
+				
+			for (var k = 0; k < hmd.length; k++) {
+		
+			  var weightedLoc = {
+				location: hmd[k],
+				//weight: Math.pow(2, magnitude[i])
+			  };
+			  heatmapData.push(weightedLoc);
+			}
+			
+			heatmap = new google.maps.visualization.HeatmapLayer({
+			  data: heatmapData,
+			  map: map
+			});
+			
+			heatmap.setMap(map);
+			
+			heatmapDatas,heatmapData=[];
+		}
+		
+		function writeRouteDetails (rt) {
+      // Writing data to file.
+      $.ajax({
+        url: "dataRouteWriter.php",
+        data: { route: rt, time: $('#time').val()}
+      }).done(function() {
+        console.log('success');
+      });
+    }
+		
+		function getLiText(point) {
+            var lat = point.lat(),
+                lng = point.lng();
+            return lat + "," + lng;
+        }
+		
+		function computeTotalDistance(result,h) {
+		  var totalDist = 0;
+		  var totalTime = 0;
+		  var myroute = result.routes[h];
+		  for (i = 0; i < myroute.legs.length; i++) {
+        totalDist += myroute.legs[i].distance.value;
+        totalTime += myroute.legs[i].duration.value;
+		  }
+		  totalDist = totalDist / 1000.
+		  document.getElementById("total_distance").innerHTML = "Total Distance: " + (totalDist/1.6).toFixed(2) + " miles";
+      document.getElementById("total_time").innerHTML = "Total Time: " + (totalTime / 60).toFixed(2); 
+		}
+    
+	function Runbat()
+            {	
+				window.open('http://localhost/maps/Cap.bat');
+               //MyObject = new ActiveXObject("WScript.Shell");
+			   //MyObject.Run("C:\\xampp\\htdocs\\maps\\Cap.bat");
+			  // MyObject.Run("C:\\xampp\\htdocs\\maps\\Cap.bat");
+            }
+    function readData() {
+      $.ajax({
+        dataType: "json",
+        url: 'export.JSON',
+        success: function(data) {
+          if (data) {
+            op = '';
+			console.log(data)
+            $.each( data, function( key, val ) {
+				
+              op += '<span>'+val[0]+'</span><span>'+val[1]+'</span>';
+            });
+            $('.dataTableContent').html(op);
+          }
+        }
+      });
+    }
+        
+    google.maps.event.addDomListener(window, 'load', initialize);
+    //readData();
+    </script>
+</body>
+</html>

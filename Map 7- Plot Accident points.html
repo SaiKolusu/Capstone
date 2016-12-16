@@ -144,8 +144,8 @@
 		}
 		
 		function getLiText(point) {
-            var lat = point.lat(),
-                lng = point.lng();
+            var lat = Math.round(point.lat()*10000)/10000,
+                lng = Math.round(point.lng()*10000)/10000;
             return lat + "," + lng;
         }
 		
